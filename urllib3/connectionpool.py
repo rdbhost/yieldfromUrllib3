@@ -5,13 +5,9 @@ import warnings
 
 from socket import error as SocketError, timeout as SocketTimeout
 import socket
+import asyncio
 
-try:  # Python 3
-    from queue import LifoQueue, Empty, Full
-except ImportError:
-    from Queue import LifoQueue, Empty, Full
-    import Queue as _  # Platform-specific: Windows
-
+from queue import LifoQueue, Empty, Full
 
 from .exceptions import (
     ClosedPoolError,
@@ -46,8 +42,6 @@ from .util.url import get_host
 xrange = six.moves.xrange
 
 log = logging.getLogger(__name__)
-
-_Default = object()
 
 
 ## Pool objects
@@ -268,7 +262,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
     def _get_timeout(self, timeout):
         """ Helper that always returns a :class:`urllib3.util.Timeout` """
-        if timeout is _Default:
+        if timeout is object():
             return self.timeout.clone()
 
         if isinstance(timeout, Timeout):
@@ -278,7 +272,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             # can be removed later
             return Timeout.from_float(timeout)
 
-    def _make_request(self, conn, method, url, timeout=_Default,
+    @asyncio.coroutine
+    def _make_request(self, conn, method, url, timeout=object(),
                       **httplib_request_kw):
         """
         Perform a request on a given urllib connection object taken from our
@@ -296,44 +291,41 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         """
         self.num_requests += 1
 
-        timeout_obj = self._get_timeout(timeout)
-        timeout_obj.start_connect()
-        conn.timeout = timeout_obj.connect_timeout
+        #timeout_obj = self._get_timeout(timeout)
+        #timeout_obj.start_connect()
+        #conn.timeout = timeout_obj.connect_timeout
 
         # Trigger any extra validation we need to do.
         self._validate_conn(conn)
 
         # conn.request() calls httplib.*.request, not the method in
         # urllib3.request. It also calls makefile (recv) on the socket.
-        conn.request(method, url, **httplib_request_kw)
+        yield from conn.request(method, url, **httplib_request_kw)
 
         # Reset the timeout for the recv() on the socket
-        read_timeout = timeout_obj.read_timeout
+        #read_timeout = timeout_obj.read_timeout
 
-        # App Engine doesn't have a sock attr
-        if getattr(conn, 'sock', None):
-            # In Python 3 socket.py will catch EAGAIN and return None when you
-            # try and read into the file pointer created by http.client, which
-            # instead raises a BadStatusLine exception. Instead of catching
-            # the exception and assuming all BadStatusLine exceptions are read
-            # timeouts, check for a zero timeout before making the request.
-            if read_timeout == 0:
-                raise ReadTimeoutError(
-                    self, url, "Read timed out. (read timeout=%s)" % read_timeout)
-            if read_timeout is Timeout.DEFAULT_TIMEOUT:
-                conn.sock.settimeout(socket.getdefaulttimeout())
-            else:  # None or a value
-                conn.sock.settimeout(read_timeout)
+        # # App Engine doesn't have a sock attr
+        # if getattr(conn, 'sock', None):
+        #     # In Python 3 socket.py will catch EAGAIN and return None when you
+        #     # try and read into the file pointer created by http.client, which
+        #     # instead raises a BadStatusLine exception. Instead of catching
+        #     # the exception and assuming all BadStatusLine exceptions are read
+        #     # timeouts, check for a zero timeout before making the request.
+        #     if read_timeout == 0:
+        #         raise ReadTimeoutError(
+        #             self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+        #     if read_timeout is Timeout.DEFAULT_TIMEOUT:
+        #         conn.sock.settimeout(socket.getdefaulttimeout())
+        #     else:  # None or a value
+        #         conn.sock.settimeout(read_timeout)
 
         # Receive the response from the server
         try:
-            try:  # Python 2.7+, use buffering of HTTP responses
-                httplib_response = conn.getresponse(buffering=True)
-            except TypeError:  # Python 2.6 and older
-                httplib_response = conn.getresponse()
-        except SocketTimeout:
+            httplib_response = yield from conn.getresponse() #buffering=True)
+        except asyncio.TimeoutError:
             raise ReadTimeoutError(
-                self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                self, url, "Read timed out. (read timeout=%s)" % self.timeout)
 
         except BaseSSLError as e:
             # Catch possible read timeouts thrown as SSL errors. If not the
@@ -342,17 +334,12 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             if 'timed out' in str(e) or \
                'did not complete (read)' in str(e):  # Python 2.6
                 raise ReadTimeoutError(
-                        self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                        self, url, "Read timed out. (read timeout=%s)" % self.timeout)
 
             raise
 
-        except SocketError as e:  # Platform-specific: Python 2
-            # See the above comment about EAGAIN in Python 3. In Python 2 we
-            # have to specifically catch it and throw the timeout error
-            if e.errno in _blocking_errnos:
-                raise ReadTimeoutError(
-                    self, url, "Read timed out. (read timeout=%s)" % read_timeout)
-
+        except OSError as e:
+            # catches socket-errors
             raise
 
         # AppEngine doesn't have a version attr.
@@ -397,8 +384,9 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
         return (scheme, host, port) == (self.scheme, self.host, self.port)
 
+    @asyncio.coroutine
     def urlopen(self, method, url, body=None, headers=None, retries=None,
-                redirect=True, assert_same_host=True, timeout=_Default,
+                redirect=True, assert_same_host=True, timeout=object(),
                 pool_timeout=None, release_conn=None, **response_kw):
         """
         Get a connection from the pool and perform an HTTP request. This is the
@@ -511,15 +499,18 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             conn = self._get_conn(timeout=pool_timeout)
 
             # Make the request on the httplib connection object.
-            httplib_response = self._make_request(conn, method, url,
-                                                  timeout=timeout,
-                                                  body=body, headers=headers)
+            httplib_response = yield from self._make_request(conn, method, url,
+                                                             timeout=timeout,
+                                                             body=body, headers=headers)
+            #yield from httplib_response.init()
 
             # If we're going to release the connection in ``finally:``, then
             # the request doesn't need to know about the connection. Otherwise
             # it will also try to release it and we'll have a double-release
             # mess.
             response_conn = not release_conn and conn
+
+            # TODO - make this async
 
             # Import httplib's response into our own wrapper object
             response = HTTPResponse.from_httplib(httplib_response,
@@ -573,10 +564,11 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             # Try again
             log.warning("Retrying (%r) after connection "
                         "broken by '%r': %s" % (retries, err, url))
-            return self.urlopen(method, url, body, headers, retries,
+            _d = yield from self.urlopen(method, url, body, headers, retries,
                                 redirect, assert_same_host,
                                 timeout=timeout, pool_timeout=pool_timeout,
                                 release_conn=release_conn, **response_kw)
+            return _d
 
         # Handle redirect?
         redirect_location = redirect and response.get_redirect_location()
@@ -592,22 +584,24 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 return response
 
             log.info("Redirecting %s -> %s" % (url, redirect_location))
-            return self.urlopen(method, redirect_location, body, headers,
+            _d = yield from self.urlopen(method, redirect_location, body, headers,
                     retries=retries, redirect=redirect,
                     assert_same_host=assert_same_host,
                     timeout=timeout, pool_timeout=pool_timeout,
                     release_conn=release_conn, **response_kw)
+            return _d
 
         # Check if we should retry the HTTP response.
         if retries.is_forced_retry(method, status_code=response.status):
             retries = retries.increment(method, url, response=response, _pool=self)
             retries.sleep()
             log.info("Forced retry: %s" % url)
-            return self.urlopen(method, url, body, headers,
+            _d = yield from self.urlopen(method, url, body, headers,
                     retries=retries, redirect=redirect,
                     assert_same_host=assert_same_host,
                     timeout=timeout, pool_timeout=pool_timeout,
                     release_conn=release_conn, **response_kw)
+            return _d
 
         return response
 

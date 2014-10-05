@@ -1,5 +1,8 @@
 import unittest
 
+import sys
+sys.path.append('..')
+
 from urllib3.poolmanager import PoolManager
 from urllib3 import connection_from_url
 from urllib3.exceptions import (

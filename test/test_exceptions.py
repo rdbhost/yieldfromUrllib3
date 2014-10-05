@@ -1,6 +1,9 @@
 import unittest
 import pickle
 
+import sys
+sys.path.append('..')
+
 from urllib3.exceptions import (HTTPError, MaxRetryError, LocationParseError,
                                 ClosedPoolError, EmptyPoolError,
                                 HostChangedError, ReadTimeoutError,

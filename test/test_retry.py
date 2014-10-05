@@ -1,5 +1,8 @@
 import unittest
 
+import sys
+sys.path.append('..')
+
 from urllib3.packages.six.moves import xrange
 from urllib3.util.retry import Retry
 from urllib3.exceptions import (

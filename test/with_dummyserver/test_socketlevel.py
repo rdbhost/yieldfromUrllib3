@@ -1,6 +1,9 @@
 # TODO: Break this module up into pieces. Maybe group by functionality tested
 # rather than the socket level-ness of it.
 
+import sys
+sys.path.extend(['..', '../..'])
+
 from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.poolmanager import proxy_from_url
 from urllib3.exceptions import (

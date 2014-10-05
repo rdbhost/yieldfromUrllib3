@@ -1,4 +1,12 @@
 import unittest
+import os
+import functools
+import asyncio
+
+import sys
+sys.path.append('..')
+
+os.environ['PYTHONASYNCIODEBUG'] = '1'
 
 from urllib3.connectionpool import (
     connection_from_url,
@@ -20,12 +28,22 @@ from urllib3.exceptions import (
 from socket import error as SocketError
 from ssl import SSLError as BaseSSLError
 
-try:   # Python 3
-    from queue import Empty
-    from http.client import HTTPException
-except ImportError:
-    from Queue import Empty
-    from httplib import HTTPException
+from queue import Empty
+from yieldfrom.httpclient import HTTPException
+
+
+def async_test(f):
+
+    testLoop = asyncio.get_event_loop()
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        coro = asyncio.coroutine(f)
+        future = coro(*args, **kwargs)
+        testLoop.run_until_complete(future)
+    return wrapper
+
+async_test.__test__ = False # not a test
 
 
 class TestConnectionPool(unittest.TestCase):
@@ -74,7 +92,7 @@ class TestConnectionPool(unittest.TestCase):
             c = connection_from_url(b)
             self.assertFalse(c.is_same_host(a), "%s =? %s" % (b, a))
 
-
+    @async_test
     def test_max_connections(self):
         pool = HTTPConnectionPool(host='localhost', maxsize=1, block=True)
 
@@ -87,7 +105,7 @@ class TestConnectionPool(unittest.TestCase):
             pass
 
         try:
-            pool.request('GET', '/', pool_timeout=0.01)
+            yield from pool.request('GET', '/', pool_timeout=0.01)
             self.fail("Managed to get a connection without EmptyPoolError")
         except EmptyPoolError:
             pass
@@ -131,7 +149,7 @@ class TestConnectionPool(unittest.TestCase):
             "Max retries exceeded with url: Test. "
             "(Caused by %r)" % err)
 
-
+    @asyncio.coroutine
     def test_pool_size(self):
         POOL_SIZE = 1
         pool = HTTPConnectionPool(host='localhost', maxsize=POOL_SIZE, block=True)
@@ -141,7 +159,12 @@ class TestConnectionPool(unittest.TestCase):
 
         def _test(exception, expect):
             pool._make_request = lambda *args, **kwargs: _raise(exception)
-            self.assertRaises(expect, pool.request, 'GET', '/')
+            try:
+                yield from pool.request('GET', '/')
+            except expect:
+                pass
+            else:
+                self.assertTrue(False, 'Expected exception %s not raised' % expect)
 
             self.assertEqual(pool.pool.qsize(), POOL_SIZE)
 
@@ -155,15 +178,25 @@ class TestConnectionPool(unittest.TestCase):
         # MaxRetryError, not EmptyPoolError
         # See: https://github.com/shazow/urllib3/issues/76
         pool._make_request = lambda *args, **kwargs: _raise(HTTPException)
-        self.assertRaises(MaxRetryError, pool.request,
-                          'GET', '/', retries=1, pool_timeout=0.01)
+        try:
+            yield from pool.request('GET', '/', retries=1, pool_timeout=0.01)
+        except MaxRetryError:
+            pass
+        else:
+            self.assertTrue(False, 'MaxRetryError not raised')
+
         self.assertEqual(pool.pool.qsize(), POOL_SIZE)
 
+    @async_test
     def test_assert_same_host(self):
         c = connection_from_url('http://google.com:80')
 
-        self.assertRaises(HostChangedError, c.request,
-                          'GET', 'http://yahoo.com:80', assert_same_host=True)
+        try:
+            yield from c.request('GET', 'http://yahoo.com:80', assert_same_host=True)
+        except HostChangedError as e:
+            pass
+        else:
+            self.assertTrue(False, 'HostChangedError not raised by request')
 
     def test_pool_close(self):
         pool = connection_from_url('http://google.com:80')

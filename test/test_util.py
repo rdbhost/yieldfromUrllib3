@@ -6,6 +6,9 @@ from itertools import chain
 
 from mock import patch
 
+import sys
+sys.path.append('..')
+
 from urllib3 import add_stderr_logger, disable_warnings
 from urllib3.util.request import make_headers
 from urllib3.util.timeout import Timeout
@@ -24,7 +27,10 @@ from urllib3.exceptions import (
 
 from urllib3.util import is_fp_closed
 
-from . import clear_warnings
+import sys
+sys.path.append('.')
+#from . import clear_warnings
+from tst_stuff import clear_warnings
 
 # This number represents a time in seconds, it doesn't mean anything in
 # isolation. Setting to a high-ish value to avoid conflicts with the smaller

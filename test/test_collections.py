@@ -1,5 +1,8 @@
 import unittest
 
+import sys
+sys.path.append('..')
+
 from urllib3._collections import (
     HTTPHeaderDict,
     RecentlyUsedContainer as Container

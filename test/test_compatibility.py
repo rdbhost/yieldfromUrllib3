@@ -1,6 +1,9 @@
 import unittest
 import warnings
 
+import sys
+sys.path.append('..')
+
 from urllib3.connection import HTTPConnection
 
 

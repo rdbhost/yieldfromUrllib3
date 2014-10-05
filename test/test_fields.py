@@ -1,5 +1,8 @@
 import unittest
 
+import sys
+sys.path.append('..')
+
 from urllib3.fields import guess_content_type, RequestField
 from urllib3.packages.six import u
 

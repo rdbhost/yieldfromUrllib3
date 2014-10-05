@@ -2,6 +2,9 @@ import unittest
 import json
 import socket
 
+import sys
+sys.path.extend(['..', '../..'])
+
 from dummyserver.testcase import HTTPDummyProxyTestCase
 from dummyserver.server import (
     DEFAULT_CA, DEFAULT_CA_BAD, get_unreachable_address)
