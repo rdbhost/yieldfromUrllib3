@@ -262,7 +262,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
     def _get_timeout(self, timeout):
         """ Helper that always returns a :class:`urllib3.util.Timeout` """
-        if timeout is object():
+        if timeout is Timeout.DEFAULT_TIMEOUT:
             return self.timeout.clone()
 
         if isinstance(timeout, Timeout):
@@ -273,7 +273,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             return Timeout.from_float(timeout)
 
     @asyncio.coroutine
-    def _make_request(self, conn, method, url, timeout=object(),
+    def _make_request(self, conn, method, url, timeout=Timeout.DEFAULT_TIMEOUT,
                       **httplib_request_kw):
         """
         Perform a request on a given urllib connection object taken from our
@@ -291,9 +291,9 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         """
         self.num_requests += 1
 
-        #timeout_obj = self._get_timeout(timeout)
-        #timeout_obj.start_connect()
-        #conn.timeout = timeout_obj.connect_timeout
+        timeout_obj = self._get_timeout(timeout)
+        timeout_obj.start_connect()
+        conn.timeout = timeout_obj.connect_timeout
 
         # Trigger any extra validation we need to do.
         self._validate_conn(conn)
@@ -303,7 +303,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         yield from conn.request(method, url, **httplib_request_kw)
 
         # Reset the timeout for the recv() on the socket
-        #read_timeout = timeout_obj.read_timeout
+        read_timeout = timeout_obj.read_timeout
+        conn.timeout = read_timeout
 
         # # App Engine doesn't have a sock attr
         # if getattr(conn, 'sock', None):
@@ -386,7 +387,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
     @asyncio.coroutine
     def urlopen(self, method, url, body=None, headers=None, retries=None,
-                redirect=True, assert_same_host=True, timeout=object(),
+                redirect=True, assert_same_host=True, timeout=Timeout.DEFAULT_TIMEOUT,
                 pool_timeout=None, release_conn=None, **response_kw):
         """
         Get a connection from the pool and perform an HTTP request. This is the
@@ -502,15 +503,14 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             httplib_response = yield from self._make_request(conn, method, url,
                                                              timeout=timeout,
                                                              body=body, headers=headers)
-            #yield from httplib_response.init()
+            if httplib_response.fp is None:
+                yield from httplib_response.init()
 
             # If we're going to release the connection in ``finally:``, then
             # the request doesn't need to know about the connection. Otherwise
             # it will also try to release it and we'll have a double-release
             # mess.
             response_conn = not release_conn and conn
-
-            # TODO - make this async
 
             # Import httplib's response into our own wrapper object
             response = HTTPResponse.from_httplib(httplib_response,

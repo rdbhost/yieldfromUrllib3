@@ -3,6 +3,8 @@ import json
 import socket
 
 import sys
+import functools
+import asyncio
 sys.path.extend(['..', '../..'])
 
 from dummyserver.testcase import HTTPDummyProxyTestCase
@@ -13,8 +15,33 @@ from urllib3.poolmanager import proxy_from_url, ProxyManager
 from urllib3.exceptions import MaxRetryError, SSLError, ProxyError
 from urllib3.connectionpool import connection_from_url, VerifiedHTTPSConnection
 
+def async_test(f):
+
+    testLoop = asyncio.get_event_loop()
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        coro = asyncio.coroutine(f)
+        future = coro(*args, **kwargs)
+        testLoop.run_until_complete(future)
+    return wrapper
+
+async_test.__test__ = False # not a test
+
+
 
 class TestHTTPProxyManager(HTTPDummyProxyTestCase):
+
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
 
     def setUp(self):
         self.http_url = 'http://%s:%d' % (self.http_host, self.http_port)
@@ -25,26 +52,29 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
                                                 self.https_port)
         self.proxy_url = 'http://%s:%d' % (self.proxy_host, self.proxy_port)
 
+    @async_test
     def test_basic_proxy(self):
         http = proxy_from_url(self.proxy_url)
 
-        r = http.request('GET', '%s/' % self.http_url)
+        r = yield from http.request('GET', '%s/' % self.http_url)
         self.assertEqual(r.status, 200)
 
-        r = http.request('GET', '%s/' % self.https_url)
+        r = yield from http.request('GET', '%s/' % self.https_url)
         self.assertEqual(r.status, 200)
 
+    @async_test
     def test_nagle_proxy(self):
         """ Test that proxy connections do not have TCP_NODELAY turned on """
         http = proxy_from_url(self.proxy_url)
         hc2 = http.connection_from_host(self.http_host, self.http_port)
         conn = hc2._get_conn()
-        hc2._make_request(conn, 'GET', '/')
+        yield from hc2._make_request(conn, 'GET', '/')
         tcp_nodelay_setting = conn.sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
         self.assertEqual(tcp_nodelay_setting, 0,
                          ("Expected TCP_NODELAY for proxies to be set "
                           "to zero, instead was %s" % tcp_nodelay_setting))
 
+    @async_test
     def test_proxy_conn_fail(self):
         host, port = get_unreachable_address()
         http = proxy_from_url('http://%s:%s/' % (host, port), retries=1)
@@ -54,27 +84,29 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
                           '%s/' % self.http_url)
 
         try:
-            http.request('GET', '%s/' % self.http_url)
+            yield from http.request('GET', '%s/' % self.http_url)
             self.fail("Failed to raise retry error.")
         except MaxRetryError as e:
             self.assertEqual(type(e.reason), ProxyError)
 
+    @async_test
     def test_oldapi(self):
         http = ProxyManager(connection_from_url(self.proxy_url))
 
-        r = http.request('GET', '%s/' % self.http_url)
+        r = yield from http.request('GET', '%s/' % self.http_url)
         self.assertEqual(r.status, 200)
 
-        r = http.request('GET', '%s/' % self.https_url)
+        r = yield from http.request('GET', '%s/' % self.https_url)
         self.assertEqual(r.status, 200)
 
+    @async_test
     def test_proxy_verified(self):
         http = proxy_from_url(self.proxy_url, cert_reqs='REQUIRED',
                               ca_certs=DEFAULT_CA_BAD)
         https_pool = http._new_pool('https', self.https_host,
                                     self.https_port)
         try:
-            https_pool.request('GET', '/')
+            yield from https_pool.request('GET', '/')
             self.fail("Didn't raise SSL error with wrong CA")
         except SSLError as e:
             self.assertTrue('certificate verify failed' in str(e),
@@ -88,7 +120,7 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
 
         conn = https_pool._new_conn()
         self.assertEqual(conn.__class__, VerifiedHTTPSConnection)
-        https_pool.request('GET', '/')  # Should succeed without exceptions.
+        yield from https_pool.request('GET', '/')  # Should succeed without exceptions.
 
         http = proxy_from_url(self.proxy_url, cert_reqs='REQUIRED',
                               ca_certs=DEFAULT_CA)
@@ -100,27 +132,29 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
         except SSLError as e:
             self.assertTrue("doesn't match" in str(e))
 
+    @async_test
     def test_redirect(self):
         http = proxy_from_url(self.proxy_url)
 
-        r = http.request('GET', '%s/redirect' % self.http_url,
+        r = yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': '%s/' % self.http_url},
                          redirect=False)
 
         self.assertEqual(r.status, 303)
 
-        r = http.request('GET', '%s/redirect' % self.http_url,
+        r = yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': '%s/' % self.http_url})
 
         self.assertEqual(r.status, 200)
         self.assertEqual(r.data, b'Dummy server!')
 
+    @async_test
     def test_cross_host_redirect(self):
         http = proxy_from_url(self.proxy_url)
 
         cross_host_location = '%s/echo?a=b' % self.http_url_alt
         try:
-            http.request('GET', '%s/redirect' % self.http_url,
+            yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': cross_host_location},
                          timeout=0.1, retries=0)
             self.fail("We don't want to follow redirects here.")
@@ -128,17 +162,18 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
         except MaxRetryError:
             pass
 
-        r = http.request('GET', '%s/redirect' % self.http_url,
+        r = yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': '%s/echo?a=b' % self.http_url_alt},
                          timeout=0.1, retries=1)
         self.assertNotEqual(r._pool.host, self.http_host_alt)
 
+    @async_test
     def test_cross_protocol_redirect(self):
         http = proxy_from_url(self.proxy_url)
 
         cross_protocol_location = '%s/echo?a=b' % self.https_url
         try:
-            http.request('GET', '%s/redirect' % self.http_url,
+            yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': cross_protocol_location},
                          timeout=0.1, retries=0)
             self.fail("We don't want to follow redirects here.")
@@ -146,11 +181,12 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
         except MaxRetryError:
             pass
 
-        r = http.request('GET', '%s/redirect' % self.http_url,
+        r = yield from http.request('GET', '%s/redirect' % self.http_url,
                          fields={'target': '%s/echo?a=b' % self.https_url},
                          timeout=0.1, retries=1)
         self.assertEqual(r._pool.host, self.https_host)
 
+    @async_test
     def test_headers(self):
         http = proxy_from_url(self.proxy_url,headers={'Foo': 'bar'},
                 proxy_headers={'Hickory': 'dickory'})
@@ -222,6 +258,7 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
         self.assertEqual(returned_headers.get('Host'),
                 '%s:%s'%(self.https_host,self.https_port))
 
+    @async_test
     def test_proxy_pooling(self):
         http = proxy_from_url(self.proxy_url)
 
@@ -241,6 +278,7 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
             r = http.urlopen('GET', self.https_url_alt)
         self.assertEqual(len(http.pools), 3)
 
+    @async_test
     def test_proxy_pooling_ext(self):
         http = proxy_from_url(self.proxy_url)
         hc1 = http.connection_from_url(self.http_url)

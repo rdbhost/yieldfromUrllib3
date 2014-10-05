@@ -1,4 +1,5 @@
 import socket
+import asyncio
 
 # try:
 #     from select import poll, POLLIN
@@ -26,6 +27,8 @@ def is_connection_dropped(conn):  # Platform-specific
     if sock is False:  # Platform-specific: AppEngine
         return False
     if sock is None:  # Connection already closed (such as by httplib).
+        return True
+    if sock.fileno() < 0:
         return True
 
     if not poll:

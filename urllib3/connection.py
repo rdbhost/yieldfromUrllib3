@@ -7,7 +7,8 @@ from .packages import six
 import asyncio
 
 
-from yieldfrom.httpclient import HTTPConnection as _HTTPConnection, HTTPSConnection as _HTTPSConnection, HTTPException
+from yieldfrom.httpclient import HTTPConnection as _HTTPConnection, HTTPSConnection as _HTTPSConnection, \
+    HTTPException, create_connection as _create_connection
 
 #try:  # Python 3
 #    from http.client import HTTPConnection as _HTTPConnection, HTTPException
@@ -63,12 +64,25 @@ port_by_scheme = {
 
 RECENT_DATE = datetime.date(2014, 1, 1)
 
+@asyncio.coroutine
+def create_connection(address, *args, **kwargs):
+    try:
+        _r = yield from _create_connection(address, *args, **kwargs)
+        return _r
+    except (OSError, asyncio.TimeoutError) as e:
+        raise ConnectTimeoutError
+    except Exception as e:
+        raise
+    except:
+        raise
+
 class HTTPConnection(_HTTPConnection):
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('strict', None)
         kwargs.pop('socket_options', None)
         _HTTPConnection.__init__(self, *args, **kwargs)
+        self._create_connection = create_connection
 
 
 # class HTTPConnection(_HTTPConnection, object):
@@ -173,7 +187,8 @@ class HTTPSConnection(HTTPConnection):
     default_port = port_by_scheme['https']
 
     def __init__(self, host, port=None, key_file=None, cert_file=None, strict=None, context=None,
-                  source_address=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, **kw):
+                  source_address=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, check_hostname=False,
+                  **kw):
 
         HTTPConnection.__init__(self, host, port, timeout=timeout, source_address=source_address, **kw)
 
@@ -183,6 +198,7 @@ class HTTPSConnection(HTTPConnection):
         if context is None:
             context = ssl._create_stdlib_context()
         self._context = context
+        self._check_hostname = check_hostname
 
         self.is_verified = False
 
@@ -195,7 +211,7 @@ class HTTPSConnection(HTTPConnection):
             server_hostname = self.host
         sni_hostname = server_hostname if ssl.HAS_SNI else None  # will be useful eventually
 
-        self.sock = yield from self._create_connection((self.host, self.port), self.TIMEOUT,
+        self.sock = yield from self._create_connection((self.host, self.port), self.timeout,
                                                        self.source_address, ssl=self._context,
                                                        server_hostname=server_hostname)
 
@@ -203,10 +219,9 @@ class HTTPSConnection(HTTPConnection):
             yield from self._tunnel()
             self.auto_open = 0
 
-        #
         # self.sock = self._context.wrap_socket(self.sock, server_hostname=sni_hostname,
         #                                       do_handshake_on_connect=False)
-        if not self._context.check_hostname:
+        if not self._context.check_hostname and self._check_hostname:
             try:
                 ssl.match_hostname(self.sock.getpeercert(), server_hostname)
             except Exception as e:

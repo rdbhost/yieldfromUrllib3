@@ -2,6 +2,8 @@
 # rather than the socket level-ness of it.
 
 import sys
+import asyncio
+import functools
 sys.path.extend(['..', '../..'])
 
 from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
@@ -26,9 +28,34 @@ from threading import Event
 import socket
 import ssl
 
+def async_test(f):
+
+    testLoop = asyncio.get_event_loop()
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        coro = asyncio.coroutine(f)
+        future = coro(*args, **kwargs)
+        testLoop.run_until_complete(future)
+    return wrapper
+
+async_test.__test__ = False # not a test
+
 
 class TestCookies(SocketDummyServerTestCase):
 
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
     def test_multi_setcookie(self):
         def multicookie_response_handler(listener):
             sock = listener.accept()[0]
@@ -45,13 +72,25 @@ class TestCookies(SocketDummyServerTestCase):
 
         self._start_server(multicookie_response_handler)
         pool = HTTPConnectionPool(self.host, self.port)
-        r = pool.request('GET', '/', retries=0)
+        r = yield from pool.request('GET', '/', retries=0)
         self.assertEqual(r.headers, {'set-cookie': 'foo=1, bar=1'})
 
 
 class TestSNI(SocketDummyServerTestCase):
 
-    def test_hostname_in_first_request_packet(self):
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
+    def tst_hostname_in_first_request_packet(self):
         if not HAS_SNI:
             raise SkipTest('SNI-support not available')
 
@@ -68,7 +107,7 @@ class TestSNI(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPSConnectionPool(self.host, self.port)
         try:
-            pool.request('GET', '/', retries=0)
+            yield from pool.request('GET', '/', retries=0)
         except SSLError: # We are violating the protocol
             pass
         done_receiving.wait()
@@ -78,6 +117,18 @@ class TestSNI(SocketDummyServerTestCase):
 
 class TestSocketClosing(SocketDummyServerTestCase):
 
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
     def test_recovery_when_server_closes_connection(self):
         # Does the pool work seamlessly if an open connection in the
         # connection pool gets hung up on by the server, then reaches
@@ -106,22 +157,24 @@ class TestSocketClosing(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPConnectionPool(self.host, self.port)
 
-        response = pool.request('GET', '/', retries=0)
+        response = yield from pool.request('GET', '/', retries=0)
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.data, b'Response 0')
+        self.assertEqual((yield from response.data), b'Response 0')
 
         done_closing.wait()  # wait until the socket in our pool gets closed
 
-        response = pool.request('GET', '/', retries=0)
+        response = yield from pool.request('GET', '/', retries=0)
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.data, b'Response 1')
+        self.assertEqual((yield from response.data), b'Response 1')
 
+    @async_test
     def test_connection_refused(self):
         # Does the pool retry if there is no listener on the port?
         host, port = get_unreachable_address()
         pool = HTTPConnectionPool(host, port)
-        self.assertRaises(MaxRetryError, pool.request, 'GET', '/', retries=0)
+        self.aioAssertRaises(MaxRetryError, pool.request, 'GET', '/', retries=0)
 
+    @async_test
     def test_connection_read_timeout(self):
         timed_out = Event()
         def socket_handler(listener):
@@ -136,10 +189,11 @@ class TestSocketClosing(SocketDummyServerTestCase):
         pool = HTTPConnectionPool(self.host, self.port, timeout=0.001, retries=False)
 
         try:
-            self.assertRaises(ReadTimeoutError, pool.request, 'GET', '/')
+            self.aioAssertRaises(ReadTimeoutError, pool.request, 'GET', '/')
         finally:
             timed_out.set()
 
+    @async_test
     def test_timeout_errors_cause_retries(self):
         def socket_handler(listener):
             sock_timeout = listener.accept()[0]
@@ -172,15 +226,16 @@ class TestSocketClosing(SocketDummyServerTestCase):
 
         try:
             self._start_server(socket_handler)
-            t = Timeout(connect=0.001, read=0.001)
+            t = Timeout(connect=0.1, read=0.1)
             pool = HTTPConnectionPool(self.host, self.port, timeout=t)
 
-            response = pool.request('GET', '/', retries=1)
+            response = yield from pool.request('GET', '/', retries=1)
             self.assertEqual(response.status, 200)
-            self.assertEqual(response.data, b'Response 2')
+            self.assertEqual((yield from response.data), b'Response 2')
         finally:
             socket.setdefaulttimeout(default_timeout)
 
+    @async_test
     def test_delayed_body_read_timeout(self):
         timed_out = Event()
 
@@ -202,13 +257,14 @@ class TestSocketClosing(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPConnectionPool(self.host, self.port)
 
-        response = pool.urlopen('GET', '/', retries=0, preload_content=False,
-                                timeout=Timeout(connect=1, read=0.001))
+        response = yield from pool.urlopen('GET', '/', retries=0, preload_content=False,
+                                timeout=Timeout(connect=1, read=0.1))
         try:
-            self.assertRaises(ReadTimeoutError, response.read)
+            self.aioAssertRaises(ReadTimeoutError, response.read)
         finally:
             timed_out.set()
 
+    @async_test
     def test_incomplete_response(self):
         body = 'Response'
         partial_body = body[:2]
@@ -234,8 +290,8 @@ class TestSocketClosing(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPConnectionPool(self.host, self.port)
 
-        response = pool.request('GET', '/', retries=0, preload_content=False)
-        self.assertRaises(ProtocolError, response.read)
+        response = yield from pool.request('GET', '/', retries=0, preload_content=False)
+        self.aioAssertRaises(ProtocolError, response.read)
 
     def test_retry_weird_http_version(self):
         """ Retry class should handle httplib.BadStatusLine errors properly """
@@ -275,14 +331,26 @@ class TestSocketClosing(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPConnectionPool(self.host, self.port)
         retry = Retry(read=1)
-        response = pool.request('GET', '/', retries=retry)
+        response = yield from pool.request('GET', '/', retries=retry)
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.data, b'foo')
+        self.assertEqual((yield from response.data), b'foo')
 
 
 
 class TestProxyManager(SocketDummyServerTestCase):
 
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
     def test_simple(self):
         def echo_socket_handler(listener):
             sock = listener.accept()[0]
@@ -302,13 +370,13 @@ class TestProxyManager(SocketDummyServerTestCase):
         base_url = 'http://%s:%d' % (self.host, self.port)
         proxy = proxy_from_url(base_url)
 
-        r = proxy.request('GET', 'http://google.com/')
+        r = yield from proxy.request('GET', 'http://google.com/')
 
         self.assertEqual(r.status, 200)
         # FIXME: The order of the headers is not predictable right now. We
         # should fix that someday (maybe when we migrate to
         # OrderedDict/MultiDict).
-        self.assertEqual(sorted(r.data.split(b'\r\n')),
+        self.assertEqual(sorted((yield from r.data).split(b'\r\n')),
                          sorted([
                              b'GET http://google.com/ HTTP/1.1',
                              b'Host: google.com',
@@ -318,6 +386,7 @@ class TestProxyManager(SocketDummyServerTestCase):
                              b'',
                          ]))
 
+    @async_test
     def test_headers(self):
         def echo_socket_handler(listener):
             sock = listener.accept()[0]
@@ -342,14 +411,15 @@ class TestProxyManager(SocketDummyServerTestCase):
 
         conn = proxy.connection_from_url('http://www.google.com/')
 
-        r = conn.urlopen('GET', 'http://www.google.com/', assert_same_host=False)
+        r = yield from conn.urlopen('GET', 'http://www.google.com/', assert_same_host=False)
 
         self.assertEqual(r.status, 200)
         # FIXME: The order of the headers is not predictable right now. We
         # should fix that someday (maybe when we migrate to
         # OrderedDict/MultiDict).
-        self.assertTrue(b'For The Proxy: YEAH!\r\n' in r.data)
+        self.assertTrue(b'For The Proxy: YEAH!\r\n' in (yield from r.data))
 
+    @async_test
     def test_retries(self):
         def echo_socket_handler(listener):
             sock = listener.accept()[0]
@@ -376,15 +446,16 @@ class TestProxyManager(SocketDummyServerTestCase):
         proxy = proxy_from_url(base_url)
         conn = proxy.connection_from_url('http://www.google.com')
 
-        r = conn.urlopen('GET', 'http://www.google.com',
+        r = yield from conn.urlopen('GET', 'http://www.google.com',
                          assert_same_host=False, retries=1)
         self.assertEqual(r.status, 200)
 
-        self.assertRaises(ProxyError, conn.urlopen, 'GET',
+        self.aioAssertRaises(ProxyError, conn.urlopen, 'GET',
                 'http://www.google.com',
                 assert_same_host=False, retries=False)
 
-    def test_connect_reconn(self):
+    @async_test
+    def tst_connect_reconn(self):
         def proxy_ssl_one(listener):
             sock = listener.accept()[0]
 
@@ -421,6 +492,7 @@ class TestProxyManager(SocketDummyServerTestCase):
                            '\r\n'
                            'Hi').encode('utf-8'))
             ssl_sock.close()
+
         def echo_socket_handler(listener):
             proxy_ssl_one(listener)
             proxy_ssl_one(listener)
@@ -432,14 +504,26 @@ class TestProxyManager(SocketDummyServerTestCase):
 
         url = 'https://{0}'.format(self.host)
         conn = proxy.connection_from_url(url)
-        r = conn.urlopen('GET', url, retries=0)
+        r = yield from conn.urlopen('GET', url, retries=0)
         self.assertEqual(r.status, 200)
-        r = conn.urlopen('GET', url, retries=0)
+        r = yield from conn.urlopen('GET', url, retries=0)
         self.assertEqual(r.status, 200)
 
 
 class TestSSL(SocketDummyServerTestCase):
 
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
     def test_ssl_failure_midway_through_conn(self):
         def socket_handler(listener):
             sock = listener.accept()[0]
@@ -467,8 +551,9 @@ class TestSSL(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPSConnectionPool(self.host, self.port)
 
-        self.assertRaises(SSLError, pool.request, 'GET', '/', retries=0)
+        self.aioAssertRaises(SSLError, pool.request, 'GET', '/', retries=0)
 
+    @async_test
     def test_ssl_read_timeout(self):
         timed_out = Event()
 
@@ -499,10 +584,10 @@ class TestSSL(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         pool = HTTPSConnectionPool(self.host, self.port)
 
-        response = pool.urlopen('GET', '/', retries=0, preload_content=False,
-                                timeout=Timeout(connect=1, read=0.001))
+        response = yield from pool.urlopen('GET', '/', retries=0, preload_content=False,
+                                timeout=Timeout(connect=1, read=0.5))
         try:
-            self.assertRaises(ReadTimeoutError, response.read)
+            self.aioAssertRaises(ReadTimeoutError, response.read)
         finally:
             timed_out.set()
 
@@ -526,6 +611,18 @@ def create_response_handler(response, num=1):
 
 class TestErrorWrapping(SocketDummyServerTestCase):
 
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        except Exception as e:
+            self.fail('expected %s exception, got %s instead' % (exc.__name__, e.__name__))
+        else:
+            self.fail('expected %s not raised' % exc.__name__)
+
+    @async_test
     def test_bad_statusline(self):
         handler = create_response_handler(
            b'HTTP/1.1 Omg What Is This?\r\n'
@@ -534,8 +631,9 @@ class TestErrorWrapping(SocketDummyServerTestCase):
         )
         self._start_server(handler)
         pool = HTTPConnectionPool(self.host, self.port, retries=False)
-        self.assertRaises(ProtocolError, pool.request, 'GET', '/')
+        self.aioAssertRaises(ProtocolError, pool.request, 'GET', '/')
 
+    @async_test
     def test_unknown_protocol(self):
         handler = create_response_handler(
            b'HTTP/1000 200 OK\r\n'
@@ -544,4 +642,4 @@ class TestErrorWrapping(SocketDummyServerTestCase):
         )
         self._start_server(handler)
         pool = HTTPConnectionPool(self.host, self.port, retries=False)
-        self.assertRaises(ProtocolError, pool.request, 'GET', '/')
+        self.aioAssertRaises(ProtocolError, pool.request, 'GET', '/')
