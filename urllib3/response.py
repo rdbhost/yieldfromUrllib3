@@ -1,6 +1,7 @@
 import zlib
 import io
 #from socket import timeout as SocketTimeout
+from yieldfrom.httpclient import HTTPResponse as _HTTPResponse
 
 from ._collections import HTTPHeaderDict
 from .exceptions import ProtocolError, DecodeError, ReadTimeoutError
@@ -95,14 +96,19 @@ class HTTPResponse(io.IOBase):
         self._original_response = original_response
         self._fp_bytes_read = 0
 
-        if body and isinstance(body, (basestring, binary_type)):
-            self._body = body
+        if body:
+            if isinstance(body, (basestring, binary_type)):
+                self._body = body
+
+            #elif isinstance(body, _HTTPResponse):
+            #    self._fp = body.fp
+
+            elif hasattr(body, 'read'):
+                self._fp = body
 
         self._pool = pool
         self._connection = connection
 
-        if hasattr(body, 'read'):
-            self._fp = body
 
     @asyncio.coroutine
     def init(self):
@@ -282,6 +288,7 @@ class HTTPResponse(io.IOBase):
         return iter(dataBlocks)
 
     @classmethod
+    @asyncio.coroutine
     def from_httplib(ResponseCls, r, **response_kw):
         """
         Given an :class:`httplib.HTTPResponse` instance ``r``, return a
@@ -297,7 +304,7 @@ class HTTPResponse(io.IOBase):
 
         # HTTPResponse objects in Python 3 don't have a .strict attribute
         strict = getattr(r, 'strict', 0)
-        return ResponseCls(body=r,
+        r = ResponseCls(body=r,
                            headers=headers,
                            status=r.status,
                            version=r.version,
@@ -305,6 +312,9 @@ class HTTPResponse(io.IOBase):
                            strict=strict,
                            original_response=r,
                            **response_kw)
+
+        yield from r.init()
+        return r
 
     # Backwards-compatibility methods for httplib.HTTPResponse
     def getheaders(self):

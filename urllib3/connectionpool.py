@@ -20,6 +20,7 @@ from .exceptions import (
     ReadTimeoutError,
     SSLError,
     TimeoutError,
+    ConnectTimeoutError,
     InsecureRequestWarning,
 )
 from .packages.ssl_match_hostname import CertificateError
@@ -504,7 +505,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                                                              timeout=timeout,
                                                              body=body, headers=headers)
             if httplib_response.fp is None:
-                yield from httplib_response.init()
+                yield from httplib_response.init() # necessary?
 
             # If we're going to release the connection in ``finally:``, then
             # the request doesn't need to know about the connection. Otherwise
@@ -513,10 +514,12 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             response_conn = not release_conn and conn
 
             # Import httplib's response into our own wrapper object
-            response = HTTPResponse.from_httplib(httplib_response,
+            respGen = HTTPResponse.from_httplib(httplib_response,
                                                  pool=self,
                                                  connection=response_conn,
                                                  **response_kw)
+
+            response = yield from respGen
 
             # else:
             #     The connection will be put back into the pool when
@@ -541,7 +544,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 conn = None
 
             stacktrace = sys.exc_info()[2]
-            if isinstance(e, SocketError) and self.proxy:
+            if isinstance(e, (SocketError, ConnectTimeoutError)) and self.proxy:
                 e = ProxyError('Cannot connect to proxy.', e)
             elif isinstance(e, (SocketError, HTTPException)):
                 e = ProtocolError('Connection aborted.', e)

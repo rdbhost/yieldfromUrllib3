@@ -43,6 +43,7 @@ except NameError:  # Python 2:
 from .exceptions import (
     ConnectTimeoutError,
     SystemTimeWarning,
+    ProtocolError
 )
 from .packages.ssl_match_hostname import match_hostname
 
@@ -71,8 +72,8 @@ def create_connection(address, *args, **kwargs):
         return _r
     except (OSError, asyncio.TimeoutError) as e:
         raise ConnectTimeoutError
-    except Exception as e:
-        raise
+    except socket.gaierror as e:
+        raise ProtocolError('socket.gaierror')
     except:
         raise
 
