@@ -1,145 +1,61 @@
-=======
-urllib3
-=======
-
-.. image:: https://travis-ci.org/shazow/urllib3.png?branch=master
-        :target: https://travis-ci.org/shazow/urllib3
-
-.. image:: https://www.bountysource.com/badge/tracker?tracker_id=192525
-        :target: https://www.bountysource.com/trackers/192525-urllib3?utm_source=192525&utm_medium=shield&utm_campaign=TRACKER_BADGE
+===================
+yieldfrom . urllib3
+===================
 
 
-Highlights
-==========
+What is this about?
+===================
 
-- Re-use the same socket connection for multiple requests
-  (``HTTPConnectionPool`` and ``HTTPSConnectionPool``)
-  (with optional client-side certificate verification).
-- File posting (``encode_multipart_formdata``).
-- Built-in redirection and retries (optional).
-- Supports gzip and deflate decoding.
-- Thread-safe and sanity-safe.
-- Works with AppEngine, gevent, and eventlib.
-- Tested on Python 2.6+, Python 3.2+, and PyPy, with 100% unit test coverage.
-- Small and easy to understand codebase perfect for extending and building upon.
-  For a more comprehensive solution, have a look at
-  `Requests <http://python-requests.org/>`_ which is also powered by ``urllib3``.
+Yieldfrom is a project to port various useful Python 3 libraries, both standard library and otherwise,
+to work under Asyncio.  The intention is to have the port be as alike as possible to the original, so that
+the learning curve is minimal, and to make porting dependent modules as easy as possible.
 
+This package is a port of the _Urllib3_ package.
 
-You might already be using urllib3!
-===================================
+Some functions, methods, and properties have become coroutines.  This document itemizes those, with a few
+notes on how usage needs to be different.  Other than what is mentioned here, the classes, methods and functions
+are all named the same and used the same.
 
-``urllib3`` powers `many great Python libraries
-<https://sourcegraph.com/search?q=package+urllib3>`_, including ``pip`` and
-``requests``.
+Since the 'yield from coroutine' statements block the current method until the statement completes, this variant
+ can be a one-for-one replacement for the original, and the architecture of the app is unchanged.  No callbacks
+ anywhere.
 
 
-What's wrong with urllib and urllib2?
-=====================================
+Classes HTTPConnection and HTTPSConnection
+==========================================
 
-There are two critical features missing from the Python standard library:
-Connection re-using/pooling and file posting. It's not terribly hard to
-implement these yourself, but it's much easier to use a module that already
-did the work for you.
-
-The Python standard libraries ``urllib`` and ``urllib2`` have little to do
-with each other. They were designed to be independent and standalone, each
-solving a different scope of problems, and ``urllib3`` follows in a similar
-vein.
+The _connect_ method is now a coroutine.  Call it with yield from, like 'c = yield from conn.connect(...)', and
+otherwise the argument list is the same.
 
 
-Why do I want to reuse connections?
-===================================
+Classes HTTPConnectionPool, PoolManager, and ProxyManager
+=========================================================
 
-Performance. When you normally do a urllib call, a separate socket
-connection is created with each request. By reusing existing sockets
-(supported since HTTP 1.1), the requests will take up less resources on the
-server's end, and also provide a faster response time at the client's end.
-With some simple benchmarks (see `test/benchmark.py
-<https://github.com/shazow/urllib3/blob/master/test/benchmark.py>`_
-), downloading 15 URLs from google.com is about twice as fast when using
-HTTPConnectionPool (which uses 1 connection) than using plain urllib (which
-uses 15 connections).
-
-This library is perfect for:
-
-- Talking to an API
-- Crawling a website
-- Any situation where being able to post files, handle redirection, and
-  retrying is useful. It's relatively lightweight, so it can be used for
-  anything!
+These classes all feature methods _urlopen_, _request_, _request_encode_url_, and _request_encode_body_ , which
+have become coroutines.  The argument list is unchanged, and the functionality is unchanged.  Just call it with
+'yield from' as a coroutine.
 
 
-Examples
-========
+Class HTTPResponse
+==================
 
-Go to `urllib3.readthedocs.org <http://urllib3.readthedocs.org>`_
-for more nice syntax-highlighted examples.
+There is one new method, _init()_ which is a coroutine.  Its function was performed by the constructor in
+_Urllib3_, but needs to be async here.  A coroutine constructor would be difficult, so the async portions are
+moved to the _init()_ method.  Run it as a coroutine after constructing an HTTPResponse.  Generally, users of
+the module won't be creating HTTPResponses directly, so this should not be much of an issue.
 
-But, long story short::
-
-  import urllib3
-
-  http = urllib3.PoolManager()
-
-  r = http.request('GET', 'http://google.com/')
-
-  print r.status, r.data
-
-The ``PoolManager`` will take care of reusing connections for you whenever
-you request the same host. For more fine-grained control of your connection
-pools, you should look at `ConnectionPool
-<http://urllib3.readthedocs.org/#connectionpool>`_.
+The _read_, _readinto_, _stream_ methods are all coroutines.  The _data_ attribute is actually a property, now
+a coroutine, and should be referenced with the _yield_ _from_ syntax, like 'd = yield from resp.data'.
 
 
-Run the tests
-=============
+The _from_httplib_ classmethod is a coroutine also, though you probably won't be using it directly.
 
-We use some external dependencies, multiple interpreters and code coverage
-analysis while running test suite. Our ``Makefile`` handles much of this for
-you as long as you're running it `inside of a virtualenv
-<http://docs.python-guide.org/en/latest/dev/virtualenvs/>`_::
-
-  $ make test
-  [... magically installs dependencies and runs tests on your virtualenv]
-  Ran 182 tests in 1.633s
-
-  OK (SKIP=6)
-
-Note that code coverage less than 100% is regarded as a failing run. Some
-platform-specific tests are skipped unless run in that platform.  To make sure
-the code works in all of urllib3's supported platforms, you can run our ``tox``
-suite::
-
-  $ make test-all
-  [... tox creates a virtualenv for every platform and runs tests inside of each]
-  py26: commands succeeded
-  py27: commands succeeded
-  py32: commands succeeded
-  py33: commands succeeded
-  py34: commands succeeded
-
-Our test suite `runs continuously on Travis CI
-<https://travis-ci.org/shazow/urllib3>`_ with every pull request.
+The _stream_ method does not actually stream, but preloads the body and simulates a stream for compatibility
+with modules and apps that use the method.
 
 
-Contributing
-============
+Otherwise
+=========
 
-#. `Check for open issues <https://github.com/shazow/urllib3/issues>`_ or open
-   a fresh issue to start a discussion around a feature idea or a bug. There is
-   a *Contributor Friendly* tag for issues that should be ideal for people who
-   are not very familiar with the codebase yet.
-#. Fork the `urllib3 repository on Github <https://github.com/shazow/urllib3>`_
-   to start making your changes.
-#. Write a test which shows that the bug was fixed or that the feature works
-   as expected.
-#. Send a pull request and bug the maintainer until it gets merged and published.
-   :) Make sure to add yourself to ``CONTRIBUTORS.txt``.
-
-
-Sponsorship
-===========
-
-If your company benefits from this library, please consider `sponsoring its
-development <http://urllib3.readthedocs.org/en/latest/#sponsorship>`_.
+Other than the changes above, the API is the same as the original, and excellent documentation can be found at:
+`URLLIB3 <http://urllib3.readthedocs.org>`.

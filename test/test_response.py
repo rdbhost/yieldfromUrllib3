@@ -206,7 +206,7 @@ class TestResponse(unittest.TestCase):
     @async_test
     def test_io(self):
         import socket
-        from yieldfrom.httpclient import HTTPResponse as OldHTTPResponse
+        from yieldfrom.http.client import HTTPResponse as OldHTTPResponse
 
         fp = self._fake_fp(b'foo')
         #fp = BytesIO(b'foo')

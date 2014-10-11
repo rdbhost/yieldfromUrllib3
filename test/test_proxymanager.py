@@ -7,6 +7,7 @@ from urllib3.poolmanager import ProxyManager
 
 
 class TestProxyManager(unittest.TestCase):
+
     def test_proxy_headers(self):
         p = ProxyManager('http://something:1234')
         url = 'http://pypi.python.org/test'

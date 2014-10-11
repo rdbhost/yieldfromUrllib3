@@ -1,5 +1,5 @@
 import unittest
-
+import asyncio
 import sys
 sys.path.append('..')
 
@@ -12,6 +12,18 @@ from urllib3.exceptions import (
 
 
 class TestPoolManager(unittest.TestCase):
+
+    @asyncio.coroutine
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        else:
+            raise Exception('expected %s not raised' % exc.__name__)
+
+
     def test_same_url(self):
         # Convince ourselves that normally we don't get the same object
         conn1 = connection_from_url('http://localhost:8081/foo')
@@ -50,6 +62,7 @@ class TestPoolManager(unittest.TestCase):
         self.assertEqual(len(connections), 5)
 
     def test_manager_clear(self):
+
         p = PoolManager(5)
 
         conn_pool = p.connection_from_url('http://google.com')
@@ -60,11 +73,11 @@ class TestPoolManager(unittest.TestCase):
         p.clear()
         self.assertEqual(len(p.pools), 0)
 
-        self.assertRaises(ClosedPoolError, conn_pool._get_conn)
+        self.aioAssertRaises(ClosedPoolError, conn_pool._get_conn)
 
         conn_pool._put_conn(conn)
 
-        self.assertRaises(ClosedPoolError, conn_pool._get_conn)
+        self.aioAssertRaises(ClosedPoolError, conn_pool._get_conn)
 
         self.assertEqual(len(p.pools), 0)
 

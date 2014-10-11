@@ -29,7 +29,7 @@ from socket import error as SocketError
 from ssl import SSLError as BaseSSLError
 
 from queue import Empty
-from yieldfrom.httpclient import HTTPException
+from yieldfrom.http.client import HTTPException
 
 
 def async_test(f):
@@ -51,6 +51,18 @@ class TestConnectionPool(unittest.TestCase):
     Tests in this suite should exercise the ConnectionPool functionality
     without actually making any network requests or connections.
     """
+
+    @asyncio.coroutine
+    def aioAssertRaises(self, exc, f, *args, **kwargs):
+        """tests a coroutine for whether it raises given error."""
+        try:
+            yield from f(*args, **kwargs)
+        except exc as e:
+            pass
+        else:
+            raise Exception('expected %s not raised' % exc.__name__)
+
+
     def test_same_host(self):
         same_host = [
             ('http://google.com/', '/'),
@@ -96,33 +108,38 @@ class TestConnectionPool(unittest.TestCase):
     def test_max_connections(self):
         pool = HTTPConnectionPool(host='localhost', maxsize=1, block=True)
 
-        pool._get_conn(timeout=0.01)
-
         try:
-            pool._get_conn(timeout=0.01)
-            self.fail("Managed to get a connection without EmptyPoolError")
-        except EmptyPoolError:
-            pass
+            yield from pool._get_conn(timeout=0.1)
 
-        try:
-            yield from pool.request('GET', '/', pool_timeout=0.01)
-            self.fail("Managed to get a connection without EmptyPoolError")
-        except EmptyPoolError:
-            pass
+            try:
+                yield from pool._get_conn(timeout=0.1)
+                self.fail("Managed to get a connection without EmptyPoolError")
+            except EmptyPoolError:
+                pass
+
+            try:
+                yield from pool.request('GET', '/', pool_timeout=0.1)
+                self.fail("Managed to get a connection without EmptyPoolError")
+            except EmptyPoolError:
+                pass
+
+        except Exception as e:
+            self.assertTrue(False)
 
         self.assertEqual(pool.num_connections, 1)
 
+    @async_test
     def test_pool_edgecases(self):
         pool = HTTPConnectionPool(host='localhost', maxsize=1, block=False)
 
-        conn1 = pool._get_conn()
-        conn2 = pool._get_conn() # New because block=False
+        conn1 = yield from pool._get_conn(timeout=0.1)
+        conn2 = yield from pool._get_conn(timeout=0.1) # New because block=False
 
         pool._put_conn(conn1)
         pool._put_conn(conn2) # Should be discarded
 
-        self.assertEqual(conn1, pool._get_conn())
-        self.assertNotEqual(conn2, pool._get_conn())
+        self.assertEqual(conn1, (yield from pool._get_conn()))
+        self.assertNotEqual(conn2, (yield from pool._get_conn(timeout=0.1)))
 
         self.assertEqual(pool.num_connections, 3)
 
@@ -198,13 +215,14 @@ class TestConnectionPool(unittest.TestCase):
         else:
             self.assertTrue(False, 'HostChangedError not raised by request')
 
+    @async_test
     def test_pool_close(self):
         pool = connection_from_url('http://google.com:80')
 
         # Populate with some connections
-        conn1 = pool._get_conn()
-        conn2 = pool._get_conn()
-        conn3 = pool._get_conn()
+        conn1 = yield from pool._get_conn(timeout=0.01)
+        conn2 = yield from pool._get_conn(timeout=0.01)
+        conn3 = yield from pool._get_conn(timeout=0.01)
         pool._put_conn(conn1)
         pool._put_conn(conn2)
 
@@ -213,13 +231,13 @@ class TestConnectionPool(unittest.TestCase):
         pool.close()
         self.assertEqual(pool.pool, None)
 
-        self.assertRaises(ClosedPoolError, pool._get_conn)
+        self.aioAssertRaises(ClosedPoolError, pool._get_conn)
 
         pool._put_conn(conn3)
 
-        self.assertRaises(ClosedPoolError, pool._get_conn)
+        self.aioAssertRaises(ClosedPoolError, pool._get_conn)
 
-        self.assertRaises(Empty, old_pool_queue.get, block=False)
+        self.aioAssertRaises(Empty, old_pool_queue.get, block=False)
 
     def test_pool_timeouts(self):
         pool = HTTPConnectionPool(host='localhost')

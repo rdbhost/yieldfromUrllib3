@@ -203,10 +203,16 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         """
         conn = None
         try:
-            conn = yield from self.pool.get()
+            timeout = Timeout.from_float(timeout)
+            try:
+                conn = yield from asyncio.wait_for(self.pool.get(), timeout.connect_timeout)
+                pass
 
-        except AttributeError:  # self.pool is None
-            raise ClosedPoolError(self, "Pool is closed.")
+            except AttributeError:  # self.pool is None
+                raise ClosedPoolError(self, "Pool is closed.")
+
+            except asyncio.TimeoutError:
+                raise QueueEmpty
 
         except QueueEmpty:
             if self.block:
@@ -362,7 +368,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
         try:
             while True:
-                conn = old_pool.get_nowait(block=False)
+                conn = old_pool.get_nowait()
                 if conn:
                     conn.close()
 
