@@ -10,28 +10,28 @@ Yieldfrom is a project to port various useful Python 3 libraries, both standard 
 to work under Asyncio.  The intention is to have the port be as alike as possible to the original, so that
 the learning curve is minimal, and to make porting dependent modules as easy as possible.
 
-This package is a port of the _Urllib3_ package.
+This package is a port of the *Urllib3* package.
 
 Some functions, methods, and properties have become coroutines.  This document itemizes those, with a few
 notes on how usage needs to be different.  Other than what is mentioned here, the classes, methods and functions
 are all named the same and used the same.
 
 Since the 'yield from coroutine' statements block the current method until the statement completes, this variant
- can be a one-for-one replacement for the original, and the architecture of the app is unchanged.  No callbacks
- anywhere.
+can be a one-for-one replacement for the original, and the architecture of the app is unchanged.  No callbacks
+anywhere.
 
 
 Classes HTTPConnection and HTTPSConnection
 ==========================================
 
-The _connect_ method is now a coroutine.  Call it with yield from, like 'c = yield from conn.connect(...)', and
+The *connect* method is now a coroutine.  Call it with yield from, like 'c = yield from conn.connect(...)', and
 otherwise the argument list is the same.
 
 
 Classes HTTPConnectionPool, PoolManager, and ProxyManager
 =========================================================
 
-These classes all feature methods _urlopen_, _request_, _request_encode_url_, and _request_encode_body_ , which
+These classes all feature methods *urlopen*, *request*, *request_encode_url*, and *request_encode_body* , which
 have become coroutines.  The argument list is unchanged, and the functionality is unchanged.  Just call it with
 'yield from' as a coroutine.
 
@@ -39,18 +39,18 @@ have become coroutines.  The argument list is unchanged, and the functionality i
 Class HTTPResponse
 ==================
 
-There is one new method, _init()_ which is a coroutine.  Its function was performed by the constructor in
-_Urllib3_, but needs to be async here.  A coroutine constructor would be difficult, so the async portions are
-moved to the _init()_ method.  Run it as a coroutine after constructing an HTTPResponse.  Generally, users of
+There is one new method, *init()* which is a coroutine.  Its function was performed by the constructor in
+*Urllib3*, but needs to be async here.  A coroutine constructor would be difficult, so the async portions are
+moved to the *init()* method.  Run it as a coroutine after constructing an HTTPResponse.  Generally, users of
 the module won't be creating HTTPResponses directly, so this should not be much of an issue.
 
-The _read_, _readinto_, _stream_ methods are all coroutines.  The _data_ attribute is actually a property, now
-a coroutine, and should be referenced with the _yield_ _from_ syntax, like 'd = yield from resp.data'.
+The *read*, *readinto*, *stream* methods are all coroutines.  The *data* attribute is actually a property, now
+a coroutine, and should be referenced with the *yield* *from* syntax, like 'd = yield from resp.data'.
 
 
-The _from_httplib_ classmethod is a coroutine also, though you probably won't be using it directly.
+The *from_httplib* classmethod is a coroutine also, though you probably won't be using it directly.
 
-The _stream_ method does not actually stream, but preloads the body and simulates a stream for compatibility
+The *stream* method does not actually stream, but preloads the body and simulates a stream for compatibility
 with modules and apps that use the method.
 
 
