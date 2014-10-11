@@ -10,20 +10,11 @@ try:
 except ImportError:
     pass # No 'develop' command, oh well.
 
-base_path = os.path.dirname(__file__)
+setup(name='yieldfrom.urllib3',
 
-# Get the version (borrowed from SQLAlchemy)
-fp = open(os.path.join(base_path, 'urllib3', '__init__.py'))
-VERSION = re.compile(r".*__version__ = '(.*?)'",
-                     re.S).match(fp.read()).group(1)
-fp.close()
+      version='0.1',
 
-
-version = VERSION
-
-setup(name='urllib3',
-      version=version,
-      description="HTTP library with thread-safe connection pooling, file post, and more.",
+      description="Asyncio HTTP library with thread-safe connection pooling, file post, and more.",
       long_description=open('README.rst').read() + '\n\n' + open('CHANGES.rst').read(),
       classifiers=[
           'Environment :: Web Environment',
@@ -31,27 +22,27 @@ setup(name='urllib3',
           'License :: OSI Approved :: MIT License',
           'Operating System :: OS Independent',
           'Programming Language :: Python',
-          'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',
           'Topic :: Internet :: WWW/HTTP',
           'Topic :: Software Development :: Libraries',
       ],
-      keywords='urllib httplib threadsafe filepost http https ssl pooling',
+      keywords='urllib httplib asyncio filepost http https ssl pooling',
+
       author='Andrey Petrov',
       author_email='andrey.petrov@shazow.net',
+      maintainer='David Keeney',
+      maintainer_email='dkeeney@rdbhost.com',
+
       url='http://urllib3.readthedocs.org/',
       license='MIT',
-      packages=['urllib3',
-                'urllib3.packages', 'urllib3.packages.ssl_match_hostname',
-                'urllib3.contrib', 'urllib3.util',
+
+      packages=['yieldfrom.urllib3',
+                'yieldfrom.urllib3.packages', 'yieldfrom.urllib3.packages.ssl_match_hostname',
+                'yieldfrom.urllib3.util',
                 ],
-      requires=[],
-      tests_require=[
-          # These are a less-specific subset of dev-requirements.txt, for the
-          # convenience of distro package maintainers.
-          'nose',
-          'mock',
-          'tornado',
-      ],
+      package_dir = {'yieldfrom': 'yieldfrom'},
+      install_requires=['yieldfrom.http.client', 'setuptools'],
+      namespace_packages = ['yieldfrom'],
+
       test_suite='test',
       )
