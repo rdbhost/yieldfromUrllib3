@@ -4,7 +4,7 @@ import unittest
 import functools
 import asyncio
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib.parse import urljoin
 from urllib3.connectionpool import HTTPConnectionPool

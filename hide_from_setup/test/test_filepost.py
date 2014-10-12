@@ -1,7 +1,7 @@
 import unittest
 
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib3.filepost import encode_multipart_formdata, iter_fields
 from urllib3.fields import RequestField

@@ -4,7 +4,8 @@ import functools
 import asyncio
 
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
+#sys.path.append('..')
 
 os.environ['PYTHONASYNCIODEBUG'] = '1'
 

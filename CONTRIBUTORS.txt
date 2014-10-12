@@ -1,6 +1,10 @@
 # Contributions to the urllib3 project
 
-## Creator & Maintainer
+## Ported to Asnycio
+
+* David Keeney <dkeeney@rdbhost.com>
+
+## Original Creator
 
 * Andrey Petrov <andrey.petrov@shazow.net>
 

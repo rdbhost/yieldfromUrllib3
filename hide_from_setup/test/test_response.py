@@ -4,7 +4,7 @@ import functools
 from io import BytesIO, BufferedReader
 
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib3.response import HTTPResponse
 from urllib3.exceptions import DecodeError

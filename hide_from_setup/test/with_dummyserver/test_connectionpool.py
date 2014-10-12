@@ -1,12 +1,13 @@
-import errno
 import logging
 import socket
-import sys
 import unittest
-import time
+import asyncio
 
 import mock
-import asyncio
+
+import errno
+import sys
+import time
 
 try:
     from urllib.parse import urlencode
@@ -14,13 +15,10 @@ except:
     from urllib import urlencode
 
 import sys
-sys.path.extend(['..', '../..'])
+sys.path.extend(['..', '../..', '../../../yieldfrom'])
 
-from tst_stuff import (
-    requires_network,
-    onlyPy3, onlyPy27OrNewer, onlyPy26OrOlder,
-    TARPIT_HOST, VALID_SOURCE_ADDRESSES, INVALID_SOURCE_ADDRESSES,
-)
+from tst_stuff import requires_network
+
 from port_helpers import find_unused_port
 from urllib3 import (
     encode_multipart_formdata,
@@ -39,7 +37,7 @@ from urllib3.util.retry import Retry
 from urllib3.util.timeout import Timeout
 
 import tornado
-from dummyserver.testcase import HTTPDummyServerTestCase
+from hide_from_setup.dummyserver.testcase import HTTPDummyServerTestCase
 
 from nose.tools import timed
 
@@ -653,7 +651,6 @@ class TestConnectionPool(HTTPDummyServerTestCase):
             yield from self.aioAssertRaises(ProtocolError,
                     pool.request, 'GET', '/source_address')
 
-    @onlyPy3
     @asyncio.coroutine
     def test_httplib_headers_case_insensitive(self):
         HEADERS = {'Content-Length': '0', 'Content-type': 'text/plain',

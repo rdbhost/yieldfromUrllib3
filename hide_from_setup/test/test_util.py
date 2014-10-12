@@ -7,7 +7,7 @@ from itertools import chain
 from mock import patch
 
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib3 import add_stderr_logger, disable_warnings
 from urllib3.util.request import make_headers

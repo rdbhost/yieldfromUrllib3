@@ -1,22 +1,25 @@
 import datetime
 import logging
 import ssl
-import sys
 import unittest
 import warnings
+import asyncio
+import functools
 
 import mock
 from nose.plugins.skip import SkipTest
 
-from dummyserver.testcase import HTTPSDummyServerTestCase
-from dummyserver.server import DEFAULT_CA, DEFAULT_CA_BAD, DEFAULT_CERTS
+import sys
+from hide_from_setup.dummyserver.testcase import HTTPSDummyServerTestCase
+from hide_from_setup.dummyserver.server import DEFAULT_CA, DEFAULT_CA_BAD, DEFAULT_CERTS
 
-from test import (
-    onlyPy26OrOlder,
+sys.path.extend(['..', '../..', '../../../yieldfrom'])
+
+from tst_stuff import (
     requires_network,
     TARPIT_HOST,
-    clear_warnings,
 )
+
 from urllib3 import HTTPSConnectionPool
 from urllib3.connection import (
     VerifiedHTTPSConnection,
@@ -32,8 +35,7 @@ from urllib3.exceptions import (
     SystemTimeWarning,
 )
 from urllib3.util.timeout import Timeout
-import asyncio
-import functools
+
 log = logging.getLogger('urllib3.connectionpool')
 log.setLevel(logging.NOTSET)
 log.addHandler(logging.StreamHandler(sys.stdout))

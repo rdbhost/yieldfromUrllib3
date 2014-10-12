@@ -1,10 +1,13 @@
 # TODO: Break this module up into pieces. Maybe group by functionality tested
 # rather than the socket level-ness of it.
 
-import sys
 import asyncio
 import functools
-sys.path.extend(['..', '../..'])
+
+import sys
+
+
+sys.path.extend(['..', '../..', '../../../yieldfrom'])
 
 from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.poolmanager import proxy_from_url
@@ -19,8 +22,8 @@ from urllib3.util.ssl_ import HAS_SNI
 from urllib3.util.timeout import Timeout
 from urllib3.util.retry import Retry
 
-from dummyserver.testcase import SocketDummyServerTestCase
-from dummyserver.server import (
+from hide_from_setup.dummyserver.testcase import SocketDummyServerTestCase
+from hide_from_setup.dummyserver.server import (
     DEFAULT_CERTS, DEFAULT_CA, get_unreachable_address)
 
 from nose.plugins.skip import SkipTest

@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+#from distutils.core import setup
+from setuptools import setup, find_packages
 
 import os
 import re
 
-try:
-    import setuptools
-except ImportError:
-    pass # No 'develop' command, oh well.
 
 setup(name='yieldfrom.urllib3',
 
@@ -36,13 +33,14 @@ setup(name='yieldfrom.urllib3',
       url='http://urllib3.readthedocs.org/',
       license='MIT',
 
-      packages=['yieldfrom.urllib3',
+      packages=['yieldfrom', 'yieldfrom.urllib3',
                 'yieldfrom.urllib3.packages', 'yieldfrom.urllib3.packages.ssl_match_hostname',
                 'yieldfrom.urllib3.util',
                 ],
-      package_dir = {'yieldfrom': 'yieldfrom'},
+      #packages=find_packages(exclude=['test\*', 'test', 'dummyserver', 'dummyserver\*', '__pycache__']),
+      #packages=find_packages('yieldfrom'),
+      package_dir={'yieldfrom': 'yieldfrom'},
       install_requires=['yieldfrom.http.client', 'setuptools'],
-      namespace_packages = ['yieldfrom'],
-
-      test_suite='test',
+      namespace_packages=['yieldfrom'],
+      zip_safe=False,
       )

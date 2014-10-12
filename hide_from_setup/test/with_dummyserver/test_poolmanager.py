@@ -3,11 +3,14 @@ import asyncio
 import json
 import functools
 
-from dummyserver.testcase import (HTTPDummyServerTestCase,
+import sys
+sys.path.extend(['..', '../..', '../../../yieldfrom'])
+
+from hide_from_setup.dummyserver.testcase import (HTTPDummyServerTestCase,
                                   IPv6HTTPDummyServerTestCase)
 from urllib3.poolmanager import PoolManager
 from urllib3.connectionpool import port_by_scheme
-from urllib3.exceptions import MaxRetryError, SSLError
+
 
 def async_test(f):
 

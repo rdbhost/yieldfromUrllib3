@@ -5,6 +5,7 @@ import functools
 import socket
 
 from nose.plugins.skip import SkipTest
+sys.path.append('../../yieldfrom')
 
 from urllib3.exceptions import MaxRetryError, HTTPWarning
 from urllib3.packages import six

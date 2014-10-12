@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 import sys
-sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib3.poolmanager import PoolManager
 from urllib3 import connection_from_url

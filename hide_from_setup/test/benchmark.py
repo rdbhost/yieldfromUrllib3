@@ -10,7 +10,7 @@ import sys
 import time
 import urllib
 
-sys.path.append('../')
+sys.path.append('../../yieldfrom')
 import urllib3
 
 

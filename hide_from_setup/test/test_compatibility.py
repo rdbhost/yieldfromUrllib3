@@ -2,7 +2,8 @@ import unittest
 import warnings
 
 import sys
-sys.path.append('..')
+#sys.path.append('..')
+sys.path.append('../../yieldfrom')
 
 from urllib3.connection import HTTPConnection
 

@@ -1,18 +1,18 @@
 import unittest
 import socket
 import threading
+
 from nose.plugins.skip import SkipTest
 from tornado import ioloop, web, wsgi
 
-from dummyserver.server import (
+from hide_from_setup.dummyserver.server import (
     SocketServerThread,
     run_tornado_app,
     run_loop_in_thread,
     DEFAULT_CERTS,
 )
-from dummyserver.handlers import TestingApp
-from dummyserver.proxy import ProxyHandler
-
+from hide_from_setup.dummyserver.handlers import TestingApp
+from hide_from_setup.dummyserver.proxy import ProxyHandler
 
 
 class SocketDummyServerTestCase(unittest.TestCase):
