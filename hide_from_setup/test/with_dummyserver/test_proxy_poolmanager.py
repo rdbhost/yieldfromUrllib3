@@ -14,6 +14,8 @@ from hide_from_setup.dummyserver.server import (
     DEFAULT_CA, DEFAULT_CA_BAD, get_unreachable_address)
 
 from urllib3.poolmanager import proxy_from_url, ProxyManager
+from urllib3.connectionpool import connection_from_url
+from urllib3.exceptions import MaxRetryError, ProxyError
 
 
 def async_test(f):
@@ -69,9 +71,10 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
         """ Test that proxy connections do not have TCP_NODELAY turned on """
         http = proxy_from_url(self.proxy_url)
         hc2 = http.connection_from_host(self.http_host, self.http_port)
-        conn = hc2._get_conn()
+        conn = yield from hc2._get_conn()
         yield from hc2._make_request(conn, 'GET', '/')
-        tcp_nodelay_setting = conn.sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
+        sock = conn.writer.transport.get_extra_info('socket')
+        tcp_nodelay_setting = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
         self.assertEqual(tcp_nodelay_setting, 0,
                          ("Expected TCP_NODELAY for proxies to be set "
                           "to zero, instead was %s" % tcp_nodelay_setting))

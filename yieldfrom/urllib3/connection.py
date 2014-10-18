@@ -211,9 +211,12 @@ class HTTPSConnection(HTTPConnection):
             server_hostname = self.host
         sni_hostname = server_hostname if ssl.HAS_SNI else None  # will be useful eventually
 
-        self.sock = yield from self._create_connection((self.host, self.port), self.timeout,
+        r, w = yield from self._create_connection((self.host, self.port), self.timeout,
                                                        self.source_address, ssl=self._context,
                                                        server_hostname=server_hostname)
+
+        self.writer = w
+        self.reader = r
 
         if self._tunnel_host:
             yield from self._tunnel()
@@ -223,7 +226,8 @@ class HTTPSConnection(HTTPConnection):
         #                                       do_handshake_on_connect=False)
         if not self._context.check_hostname and self._check_hostname:
             try:
-                ssl.match_hostname(self.sock.getpeercert(), server_hostname)
+                sock = self.writer.transport.get_extra_info('socket')
+                ssl.match_hostname(sock.getpeercert(), server_hostname)
             except Exception as e:
                 self.close()
                 raise
@@ -283,12 +287,13 @@ class VerifiedHTTPSConnection(HTTPSConnection):
         #                             server_hostname=hostname,
         #                             ssl_version=resolved_ssl_version)
 
+        sock = self.writer.transport.get_extra_info('socket')
         if self.assert_fingerprint:
-            assert_fingerprint(self.sock.getpeercert(binary_form=True),
+            assert_fingerprint(sock.getpeercert(binary_form=True),
                                self.assert_fingerprint)
         elif resolved_cert_reqs != ssl.CERT_NONE \
                 and self.assert_hostname is not False:
-            match_hostname(self.sock.getpeercert(),
+            match_hostname(sock.getpeercert(),
                            self.assert_hostname or server_hostname)
 
         self.is_verified = (resolved_cert_reqs == ssl.CERT_REQUIRED

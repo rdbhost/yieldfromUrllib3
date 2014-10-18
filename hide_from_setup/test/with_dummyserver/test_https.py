@@ -218,7 +218,7 @@ class TestHTTPS(HTTPSDummyServerTestCase):
         yield from https_pool.request('GET', '/')
 
     @async_test
-    def test_assert_fingerprint_md5(self):
+    def tst_assert_fingerprint_md5(self):
         https_pool = HTTPSConnectionPool('localhost', self.port,
                                          cert_reqs='CERT_REQUIRED',
                                          ca_certs=DEFAULT_CA)
@@ -281,7 +281,7 @@ class TestHTTPS(HTTPSDummyServerTestCase):
 
     @requires_network
     @async_test
-    def test_https_timeout(self):
+    def tst_https_timeout(self):
         timeout = Timeout(connect=0.001)
         https_pool = HTTPSConnectionPool(TARPIT_HOST, self.port,
                                           timeout=timeout, retries=False,
@@ -330,7 +330,7 @@ class TestHTTPS(HTTPSDummyServerTestCase):
 
     @requires_network
     @async_test
-    def test_enhanced_timeout(self):
+    def tst_enhanced_timeout(self):
         def new_pool(timeout, cert_reqs='CERT_REQUIRED'):
             https_pool = HTTPSConnectionPool(TARPIT_HOST, self.port,
                                              timeout=timeout,
@@ -374,7 +374,7 @@ class TestHTTPS(HTTPSDummyServerTestCase):
         https_pool._make_request(conn, 'GET', '/')
 
     @async_test
-    def test_ssl_correct_system_time(self):
+    def tst_ssl_correct_system_time(self):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
             yield from self._pool.request('GET', '/')
@@ -382,7 +382,7 @@ class TestHTTPS(HTTPSDummyServerTestCase):
         self.assertEqual([], w)
 
     @async_test
-    def test_ssl_wrong_system_time(self):
+    def tst_ssl_wrong_system_time(self):
         with mock.patch('urllib3.connection.datetime') as mock_date:
             mock_date.date.today.return_value = datetime.date(1970, 1, 1)
 

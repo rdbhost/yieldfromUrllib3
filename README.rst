@@ -17,8 +17,21 @@ notes on how usage needs to be different.  Other than what is mentioned here, th
 are all named the same and used the same.
 
 Since the 'yield from coroutine' statements block the current method until the statement completes, this variant
-can be a one-for-one replacement for the original, and the architecture of the app is unchanged.  No callbacks
-anywhere.
+can be a statement-for-statement replacement for the original, and the architecture of the app is unchanged.  No
+callbacks anywhere.
+
+
+imports
+=======
+
+Instead of importing like:
+
+	from urllib.connections import HTTPConnection
+	from urllib import connections
+
+use:
+	from yieldfrom.urllib.connections import HTTPConnection
+	from yieldfrom.urllib import connections
 
 
 Classes HTTPConnection and HTTPSConnection
