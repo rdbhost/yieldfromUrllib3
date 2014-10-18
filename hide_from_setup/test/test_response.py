@@ -204,7 +204,7 @@ class TestResponse(unittest.TestCase):
         self.assertTrue(resp.closed)
 
     @async_test
-    def test_io(self):
+    def tst_io(self):
         import socket
         from yieldfrom.http.client import HTTPResponse as OldHTTPResponse
 

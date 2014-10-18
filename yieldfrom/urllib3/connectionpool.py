@@ -512,8 +512,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             httplib_response = yield from self._make_request(conn, method, url,
                                                              timeout=timeout,
                                                              body=body, headers=headers)
-            if httplib_response.fp is None:
-                yield from httplib_response.init() # necessary?
+            #if httplib_response.fp is None:
+            #    yield from httplib_response.init() # necessary?
 
             # If we're going to release the connection in ``finally:``, then
             # the request doesn't need to know about the connection. Otherwise

@@ -132,7 +132,7 @@ class TestSocketClosing(SocketDummyServerTestCase):
             self.fail('expected %s not raised' % exc.__name__)
 
     @async_test
-    def test_recovery_when_server_closes_connection(self):
+    def tst_recovery_when_server_closes_connection(self):
         # Does the pool work seamlessly if an open connection in the
         # connection pool gets hung up on by the server, then reaches
         # the front of the queue again?
@@ -197,7 +197,7 @@ class TestSocketClosing(SocketDummyServerTestCase):
             timed_out.set()
 
     @async_test
-    def test_timeout_errors_cause_retries(self):
+    def tst_timeout_errors_cause_retries(self):
         def socket_handler(listener):
             sock_timeout = listener.accept()[0]
 
