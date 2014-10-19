@@ -211,12 +211,11 @@ class HTTPSConnection(HTTPConnection):
             server_hostname = self.host
         sni_hostname = server_hostname if ssl.HAS_SNI else None  # will be useful eventually
 
-        r, w = yield from self._create_connection((self.host, self.port), self.timeout,
+        ns = yield from self._create_connection((self.host, self.port), self.timeout,
                                                        self.source_address, ssl=self._context,
                                                        server_hostname=server_hostname)
 
-        self.writer = w
-        self.reader = r
+        self.notSock = ns
 
         if self._tunnel_host:
             yield from self._tunnel()
@@ -226,7 +225,7 @@ class HTTPSConnection(HTTPConnection):
         #                                       do_handshake_on_connect=False)
         if not self._context.check_hostname and self._check_hostname:
             try:
-                sock = self.writer.transport.get_extra_info('socket')
+                sock = self.notSock.socket()
                 ssl.match_hostname(sock.getpeercert(), server_hostname)
             except Exception as e:
                 self.close()
@@ -287,7 +286,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
         #                             server_hostname=hostname,
         #                             ssl_version=resolved_ssl_version)
 
-        sock = self.writer.transport.get_extra_info('socket')
+        sock = self.notSock.socket()
         if self.assert_fingerprint:
             assert_fingerprint(sock.getpeercert(binary_form=True),
                                self.assert_fingerprint)
