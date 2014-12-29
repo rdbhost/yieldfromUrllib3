@@ -4,13 +4,13 @@ import json
 import functools
 
 import sys
-sys.path.extend(['..', '../..', '../../../yieldfrom'])
+sys.path.extend(['..', '../..', '../../../'])
 
 from hide_from_setup.dummyserver.testcase import (HTTPDummyServerTestCase,
                                   IPv6HTTPDummyServerTestCase)
-from urllib3.poolmanager import PoolManager
-from urllib3.connectionpool import port_by_scheme
-from urllib3.exceptions import MaxRetryError
+from yieldfrom.urllib3.poolmanager import PoolManager
+from yieldfrom.urllib3.connectionpool import port_by_scheme
+from yieldfrom.urllib3.exceptions import MaxRetryError
 
 
 def async_test(f):

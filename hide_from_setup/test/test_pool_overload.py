@@ -4,13 +4,13 @@ import unittest
 import functools
 import asyncio
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
 from urllib.parse import urljoin
-from urllib3.connectionpool import HTTPConnectionPool
-from urllib3.poolmanager import PoolManager
-from urllib3 import connection_from_url
-from urllib3.exceptions import (
+from yieldfrom.urllib3.connectionpool import HTTPConnectionPool
+from yieldfrom.urllib3.poolmanager import PoolManager
+from yieldfrom.urllib3 import connection_from_url
+from yieldfrom.urllib3.exceptions import (
     ClosedPoolError,
     LocationValueError,
     EmptyPoolError,

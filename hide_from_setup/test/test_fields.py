@@ -1,10 +1,10 @@
 import unittest
 
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.fields import guess_content_type, RequestField
-from urllib3.packages.six import u
+from yieldfrom.urllib3.fields import guess_content_type, RequestField
+from yieldfrom.urllib3.packages.six import u
 
 
 class TestRequestField(unittest.TestCase):

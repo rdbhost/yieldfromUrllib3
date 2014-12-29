@@ -3,11 +3,11 @@ import unittest
 import sys
 sys.path.append('..')
 
-from urllib3._collections import (
+from yieldfrom.urllib3._collections import (
     HTTPHeaderDict,
     RecentlyUsedContainer as Container
 )
-from urllib3.packages import six
+from yieldfrom.urllib3.packages import six
 xrange = six.moves.xrange
 
 

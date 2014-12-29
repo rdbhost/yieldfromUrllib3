@@ -4,19 +4,19 @@ import functools
 import asyncio
 
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 #sys.path.append('..')
 
 os.environ['PYTHONASYNCIODEBUG'] = '1'
 
-from urllib3.connectionpool import (
+from yieldfrom.urllib3.connectionpool import (
     connection_from_url,
     HTTPConnection,
     HTTPConnectionPool,
 )
-from urllib3.util.timeout import Timeout
-from urllib3.packages.ssl_match_hostname import CertificateError
-from urllib3.exceptions import (
+from yieldfrom.urllib3.util.timeout import Timeout
+from yieldfrom.urllib3.packages.ssl_match_hostname import CertificateError
+from yieldfrom.urllib3.exceptions import (
     ClosedPoolError,
     EmptyPoolError,
     HostChangedError,

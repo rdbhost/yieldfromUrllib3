@@ -2,13 +2,13 @@ import unittest
 import pickle
 
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.exceptions import (HTTPError, MaxRetryError, LocationParseError,
+from yieldfrom.urllib3.exceptions import (HTTPError, MaxRetryError, LocationParseError,
                                 ClosedPoolError, EmptyPoolError,
                                 HostChangedError, ReadTimeoutError,
                                 ConnectTimeoutError)
-from urllib3.connectionpool import HTTPConnectionPool
+from yieldfrom.urllib3.connectionpool import HTTPConnectionPool
 
 
 

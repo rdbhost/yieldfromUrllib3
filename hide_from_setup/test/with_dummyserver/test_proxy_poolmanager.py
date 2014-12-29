@@ -7,15 +7,15 @@ import asyncio
 import sys
 
 
-sys.path.extend(['..', '../..', '../../../yieldfrom'])
+sys.path.extend(['..', '../..', '../../../'])
 
 from hide_from_setup.dummyserver.testcase import HTTPDummyProxyTestCase
 from hide_from_setup.dummyserver.server import (
     DEFAULT_CA, DEFAULT_CA_BAD, get_unreachable_address)
 
-from urllib3.poolmanager import proxy_from_url, ProxyManager
-from urllib3.connectionpool import connection_from_url
-from urllib3.exceptions import MaxRetryError, ProxyError
+from yieldfrom.urllib3.poolmanager import proxy_from_url, ProxyManager
+from yieldfrom.urllib3.connectionpool import connection_from_url
+from yieldfrom.urllib3.exceptions import MaxRetryError, ProxyError
 
 
 def async_test(f):

@@ -3,9 +3,9 @@ import warnings
 
 import sys
 #sys.path.append('..')
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.connection import HTTPConnection
+from yieldfrom.urllib3.connection import HTTPConnection
 
 
 class TestVersionCompatibility(unittest.TestCase):

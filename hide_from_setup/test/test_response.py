@@ -4,10 +4,10 @@ import functools
 from io import BytesIO, BufferedReader
 
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.response import HTTPResponse
-from urllib3.exceptions import DecodeError
+from yieldfrom.urllib3.response import HTTPResponse
+from yieldfrom.urllib3.exceptions import DecodeError
 
 
 from base64 import b64decode
@@ -148,7 +148,7 @@ class TestResponse(unittest.TestCase):
         fp.feed_data(data)
         r = HTTPResponse(fp, headers={'content-encoding': 'deflate'},
                          preload_content=False)
-        yield from r.init()
+        #yield from r.init()
         _d1 = yield from r.read(3)
         _d2 = yield from r.read(1)
         _d3 = yield from r.read(2)

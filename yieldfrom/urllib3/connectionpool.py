@@ -263,11 +263,12 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         if conn:
             conn.close()
 
+    @asyncio.coroutine
     def _validate_conn(self, conn):
         """
         Called right before a request is made, after the socket is created.
         """
-        pass
+        yield None
 
     def _get_timeout(self, timeout):
         """ Helper that always returns a :class:`urllib3.util.Timeout` """
@@ -305,7 +306,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         conn.timeout = timeout_obj.connect_timeout
 
         # Trigger any extra validation we need to do.
-        self._validate_conn(conn)
+        yield from self._validate_conn(conn)
 
         # conn.request() calls httplib.*.request, not the method in
         # urllib3.request. It also calls makefile (recv) on the socket.
@@ -716,15 +717,17 @@ class HTTPSConnectionPool(HTTPConnectionPool):
 
         return self._prepare_conn(conn)
 
+    @asyncio.coroutine
     def _validate_conn(self, conn):
         """
         Called right before a request is made, after the socket is created.
         """
-        super(HTTPSConnectionPool, self)._validate_conn(conn)
+        vcs = super(HTTPSConnectionPool, self)
+        yield from vcs._validate_conn(conn)
 
         # Force connect early to allow us to validate the connection.
         if not getattr(conn, 'sock', None):  # AppEngine might not have  `.sock`
-            conn.connect()
+            yield from conn.connect()
 
         if not conn.is_verified:
             warnings.warn((

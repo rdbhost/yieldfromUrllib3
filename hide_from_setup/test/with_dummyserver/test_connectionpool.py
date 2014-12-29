@@ -15,16 +15,16 @@ except:
     from urllib import urlencode
 
 import sys
-sys.path.extend(['..', '../..', '../../../yieldfrom'])
+sys.path.extend(['..', '../..', '../../../'])
 
 from tst_stuff import requires_network
 
 from port_helpers import find_unused_port
-from urllib3 import (
+from yieldfrom.urllib3 import (
     encode_multipart_formdata,
     HTTPConnectionPool,
 )
-from urllib3.exceptions import (
+from yieldfrom.urllib3.exceptions import (
     ConnectTimeoutError,
     EmptyPoolError,
     DecodeError,
@@ -32,9 +32,9 @@ from urllib3.exceptions import (
     ReadTimeoutError,
     ProtocolError,
 )
-from urllib3.packages.six import b, u
-from urllib3.util.retry import Retry
-from urllib3.util.timeout import Timeout
+from yieldfrom.urllib3.packages.six import b, u
+from yieldfrom.urllib3.util.retry import Retry
+from yieldfrom.urllib3.util.timeout import Timeout
 
 import tornado
 from hide_from_setup.dummyserver.testcase import HTTPDummyServerTestCase

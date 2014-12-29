@@ -7,20 +7,20 @@ import functools
 import sys
 
 
-sys.path.extend(['..', '../..', '../../../yieldfrom'])
+sys.path.extend(['..', '../..', '../../..'])
 
-from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
-from urllib3.poolmanager import proxy_from_url
-from urllib3.exceptions import (
+from yieldfrom.urllib3 import HTTPConnectionPool, HTTPSConnectionPool
+from yieldfrom.urllib3.poolmanager import proxy_from_url
+from yieldfrom.urllib3.exceptions import (
         MaxRetryError,
         ProxyError,
         ReadTimeoutError,
         SSLError,
         ProtocolError,
 )
-from urllib3.util.ssl_ import HAS_SNI
-from urllib3.util.timeout import Timeout
-from urllib3.util.retry import Retry
+from yieldfrom.urllib3.util.ssl_ import HAS_SNI
+from yieldfrom.urllib3.util.timeout import Timeout
+from yieldfrom.urllib3.util.retry import Retry
 
 from hide_from_setup.dummyserver.testcase import SocketDummyServerTestCase
 from hide_from_setup.dummyserver.server import (

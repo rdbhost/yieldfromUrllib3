@@ -5,10 +5,10 @@ import functools
 import socket
 
 from nose.plugins.skip import SkipTest
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.exceptions import MaxRetryError, HTTPWarning
-from urllib3.packages import six
+from yieldfrom.urllib3.exceptions import MaxRetryError, HTTPWarning
+from yieldfrom.urllib3.packages import six
 
 # We need a host that will not immediately close the connection with a TCP
 # Reset. SO suggests this hostname

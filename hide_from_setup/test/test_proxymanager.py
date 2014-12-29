@@ -1,9 +1,9 @@
 import unittest
 
 import sys
-sys.path.append('../../yieldfrom')
+sys.path.append('../../')
 
-from urllib3.poolmanager import ProxyManager
+from yieldfrom.urllib3.poolmanager import ProxyManager
 
 
 class TestProxyManager(unittest.TestCase):
