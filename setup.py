@@ -9,7 +9,7 @@ import re
 
 setup(name='yieldfrom.urllib3',
 
-      version='0.1.1',
+      version='0.1.2',
 
       description="Asyncio HTTP library with thread-safe connection pooling, file post, and more.",
       long_description=open('README.rst').read() + '\n\n' + open('CHANGES.rst').read(),
