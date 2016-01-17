@@ -7,7 +7,6 @@ from socket import error as SocketError, timeout as SocketTimeout
 import socket
 import asyncio
 
-#from queue import LifoQueue, Empty, Full
 from asyncio.queues import LifoQueue, QueueEmpty, QueueFull
 
 from .exceptions import (
@@ -549,6 +548,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             if conn:
                 # Discard the connection for these exceptions. It will be
                 # be replaced during the next _get_conn() call.
+                log.debug('closing connection')
                 conn.close()
                 conn = None
 
@@ -560,7 +560,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
             retries = retries.increment(method, url, error=e,
                                         _pool=self, _stacktrace=stacktrace)
-            retries.sleep()
+            yield from retries.sleep()
 
             # Keep track of the error for the retry warning.
             err = e
