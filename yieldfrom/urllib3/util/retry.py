@@ -1,5 +1,6 @@
 import time
 import logging
+import asyncio
 
 from ..exceptions import (
     ProtocolError,
@@ -126,7 +127,7 @@ class Retry(object):
         self.method_whitelist = method_whitelist
         self.backoff_factor = backoff_factor
         self.raise_on_redirect = raise_on_redirect
-        self._observed_errors = _observed_errors # TODO: use .history instead?
+        self._observed_errors = _observed_errors  # TODO: use .history instead?
 
     def new(self, **kw):
         params = dict(
@@ -166,6 +167,7 @@ class Retry(object):
         backoff_value = self.backoff_factor * (2 ** (self._observed_errors - 1))
         return min(self.BACKOFF_MAX, backoff_value)
 
+    @asyncio.coroutine
     def sleep(self):
         """ Sleep between retry attempts using an exponential backoff.
 
@@ -175,7 +177,7 @@ class Retry(object):
         backoff = self.get_backoff_time()
         if backoff <= 0:
             return
-        time.sleep(backoff)
+        yield from asyncio.sleep(backoff)
 
     def _is_connection_error(self, err):
         """ Errors when we're fairly sure that the server did not receive the
@@ -267,7 +269,6 @@ class Retry(object):
         log.debug("Incremented Retry for (url='%s'): %r" % (url, new_retry))
 
         return new_retry
-
 
     def __repr__(self):
         return ('{cls.__name__}(total={self.total}, connect={self.connect}, '

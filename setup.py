@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-#from distutils.core import setup
 from setuptools import setup, find_packages
 
 import os
@@ -9,7 +8,7 @@ import re
 
 setup(name='yieldfrom.urllib3',
 
-      version='0.1.2',
+      version='0.1.4',
 
       description="Asyncio HTTP library with thread-safe connection pooling, file post, and more.",
       long_description=open('README.rst').read() + '\n\n' + open('CHANGES.rst').read(),
@@ -37,10 +36,8 @@ setup(name='yieldfrom.urllib3',
                 'yieldfrom.urllib3.packages', 'yieldfrom.urllib3.packages.ssl_match_hostname',
                 'yieldfrom.urllib3.util',
                 ],
-      #packages=find_packages(exclude=['test\*', 'test', 'dummyserver', 'dummyserver\*', '__pycache__']),
-      #packages=find_packages('yieldfrom'),
       package_dir={'yieldfrom': 'yieldfrom'},
-      install_requires=['yieldfrom.http.client', 'setuptools'],
+      install_requires=['yieldfrom.http.client<0.2', 'setuptools'],
       namespace_packages=['yieldfrom'],
       zip_safe=False,
       )

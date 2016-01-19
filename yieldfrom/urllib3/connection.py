@@ -225,8 +225,8 @@ class HTTPSConnection(HTTPConnection):
         #                                       do_handshake_on_connect=False)
         if not self._context.check_hostname and self._check_hostname:
             try:
-                sock = self.notSock.socket()
-                ssl.match_hostname(sock.getpeercert(), server_hostname)
+                #sock = self.notSock.socket()
+                ssl.match_hostname(self.notSock.peercert(), server_hostname)
             except Exception as e:
                 self.close()
                 raise
@@ -286,13 +286,13 @@ class VerifiedHTTPSConnection(HTTPSConnection):
         #                             server_hostname=hostname,
         #                             ssl_version=resolved_ssl_version)
 
-        sock = self.notSock.socket()
+        #sock = self.notSock.socket()
         if self.assert_fingerprint:
-            assert_fingerprint(sock.getpeercert(binary_form=True),
+            assert_fingerprint(self.notSock.peercert(binary_form=True),
                                self.assert_fingerprint)
         elif resolved_cert_reqs != ssl.CERT_NONE \
                 and self.assert_hostname is not False:
-            match_hostname(sock.getpeercert(),
+            match_hostname(self.notSock.peercert(),
                            self.assert_hostname or server_hostname)
 
         self.is_verified = (resolved_cert_reqs == ssl.CERT_REQUIRED
